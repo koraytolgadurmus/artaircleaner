@@ -17,6 +17,8 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: flutter build web --release --base-href /artaircleaner/
+            - name: SPA 404 fallback
+        run: cp build/web/index.html build/web/404.html
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
