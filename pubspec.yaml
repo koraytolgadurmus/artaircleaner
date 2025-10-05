@@ -1,26 +1,15 @@
-name: artaircleaner
-description: ArtAirCleaner
-publish_to: 'none'
-
-environment:
-  sdk: ^3.9.2
-
-dependencies:
-  flutter:
-    sdk: flutter
-  cupertino_icons: ^1.0.8
-  http: ^1.2.2
-  shared_preferences: ^2.2.3
-  flutter_localizations:
-    sdk: flutter
-  intl: ^0.20.2
-  flutter_colorpicker: ^1.1.0
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
-
-flutter:
-  uses-material-design: true
-  generate: true
+<!DOCTYPE html>
+<html>
+  <head>
+    <base href="/artaircleaner/">
+    <meta charset="UTF-8" />
+    <meta name="description" content="ArtAirCleaner" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtAirCleaner</title>
+    <link rel="manifest" href="manifest.json">
+  </head>
+  <body>
+    <!-- Flutter bootstrap (no service worker) -->
+    <script src="flutter_bootstrap.js" async></script>
+  </body>
+</html>
