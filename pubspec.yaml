@@ -1,10 +1,10 @@
 name: artaircleaner
-description: ArtAirCleaner Flutter web/app
-publish_to: 'none'
+description: ArtAirCleaner Web UI
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.4.0 <4.0.0'
+  sdk: ">=3.4.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -20,3 +20,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
