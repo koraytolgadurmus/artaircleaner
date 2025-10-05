@@ -1,23 +1,24 @@
-name: artaircleaner
-description: ArtAirCleaner Flutter application
-publish_to: "none"
-version: 1.0.0+1
+<!DOCTYPE html>
+<html>
+  <head>
+    <base href="/artaircleaner/">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no"/>
+    <title>ArtAirCleaner</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" type="image/png" href="favicon.png"/>
 
-environment:
-  sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.22.0"
-
-dependencies:
-  flutter:
-    sdk: flutter
-  cupertino_icons: ^1.0.8
-  shared_preferences: ^2.5.3
-  http: ^1.2.2
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
-
-flutter:
-  uses-material-design: true
+    <!-- Optional: kill old service workers to avoid white-screen due to stale cache -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Flutter loader -->
+    <script src="flutter_bootstrap.js" async></script>
+  </body>
+</html>
