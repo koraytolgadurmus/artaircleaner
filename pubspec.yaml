@@ -1,20 +1,172 @@
-name: artaircleaner
-description: ArtAirCleaner Flutter application
-publish_to: 'none'
-version: 1.0.0+1
+import 'dart:async';
+import 'dart:convert';
 
-environment:
-  sdk: '>=3.3.0 <4.0.0'
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-dependencies:
-  flutter:
-    sdk: flutter
-  http: ^1.5.0
-  shared_preferences: ^2.5.3
-  cupertino_icons: ^1.0.8
 
-dev_dependencies:
-  flutter_lints: ^4.0.0
+// Returns true if current page is loaded over HTTPS (e.g., GitHub Pages).
+bool get _isHttpsPage => Uri.base.scheme.toLowerCase() == 'https';
 
-flutter:
-  uses-material-design: true
+class ArtAirCleanerApp extends StatefulWidget {
+  const ArtAirCleanerApp({super.key});
+
+  @override
+  State<ArtAirCleanerApp> createState() => _ArtAirCleanerAppState();
+}
+
+class _ArtAirCleanerAppState extends State<ArtAirCleanerApp> {
+  String _deviceIp = '192.168.3.16';
+  Map<String, dynamic>? _deviceState;
+  Timer? _pollTimer;
+  bool _isLoading = false;
+  bool _isError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDeviceIp();
+    _startPolling();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadDeviceIp() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _deviceIp = prefs.getString('deviceIp') ?? '192.168.3.16';
+    });
+  }
+
+  Future<void> _saveDeviceIp() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('deviceIp', _deviceIp);
+  }
+
+  Future<void> _pollState() async {
+    if (_isHttpsPage) {
+      // Skip network operations on HTTPS page to avoid mixed-content blocks.
+      return;
+    }
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _isError = false;
+    });
+    try {
+      final response = await http.get(Uri.parse('http://$_deviceIp/state'));
+      if (response.statusCode == 200) {
+        setState(() {
+          _deviceState = jsonDecode(response.body);
+          _isError = false;
+        });
+      } else {
+        setState(() {
+          _isError = true;
+        });
+      }
+    } catch (_) {
+      setState(() {
+        _isError = true;
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _startPolling() {
+    _pollState();
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _pollState();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // If this Web UI is opened via HTTPS (e.g., GitHub Pages), browsers block HTTP calls
+    // to local devices (mixed content). Show guidance instead of crashing to a white screen.
+    if (_isHttpsPage) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('ArtAirCleaner')),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Yerel cihaza erişim engellendi',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Bu sayfa HTTPS üzerinden yüklendiği için tarayıcı HTTP (cihaz IP) isteklerini engeller.\n'
+                  'Lütfen cihazın arayüzünü doğrudan şu adresten açın:\n'
+                  'http://192.168.3.16 (veya cihazınızın IP’si).',
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Not: Uygulamayı doğrudan ESP32’den servis ederseniz (HTTP), bu kısıt kalkar.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return MaterialApp(
+      title: 'ArtAirCleaner',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('ArtAirCleaner'),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Cihaz IP Adresi',
+                ),
+                controller: TextEditingController(text: _deviceIp),
+                onChanged: (value) {
+                  _deviceIp = value;
+                  _saveDeviceIp();
+                },
+              ),
+              const SizedBox(height: 16),
+              if (_isLoading)
+                const CircularProgressIndicator()
+              else if (_isError)
+                const Text('Cihaz durumu alınamadı.', style: TextStyle(color: Colors.red))
+              else if (_deviceState != null)
+                Expanded(
+                  child: ListView(
+                    children: _deviceState!.entries.map((entry) {
+                      return ListTile(
+                        title: Text(entry.key),
+                        subtitle: Text(entry.value.toString()),
+                      );
+                    }).toList(),
+                  ),
+                )
+              else
+                const Text('Cihaz durumu yok.'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
