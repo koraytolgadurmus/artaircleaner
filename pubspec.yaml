@@ -1,15 +1,22 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <base href="/artaircleaner/">
-    <meta charset="UTF-8" />
-    <meta name="description" content="ArtAirCleaner" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArtAirCleaner</title>
-    <link rel="manifest" href="manifest.json">
-  </head>
-  <body>
-    <!-- Flutter bootstrap (no service worker) -->
-    <script src="flutter_bootstrap.js" async></script>
-  </body>
-</html>
+name: artaircleaner
+description: ArtAirCleaner Flutter application
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
