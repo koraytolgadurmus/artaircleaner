@@ -1,38 +1,130 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
+#include <esp_wifi.h>
 
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
+// --- Optional: a GPIO to force AP on boot (BOOT button is GPIO0 on many dev boards)
+#ifndef FORCE_AP_PIN
+#define FORCE_AP_PIN 0
+#endif
 
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+#include <Preferences.h>
+#include <WebServer.h>
+#include <DNSServer.h>
 
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="$FLUTTER_BASE_HREF">
+Preferences prefs;
+WebServer server(80);
+DNSServer dns;
 
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+bool serverStarted = false;
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="artaircleaner">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+// Forward declarations
+void startAP();
+void startSTAHandlers();
+void rebootSoon(uint32_t ms = 500);
+void factoryReset();
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+void sendJson(const char* json) {
+  server.send(200, "application/json", json);
+}
 
-  <title>artaircleaner</title>
-  <link rel="manifest" href="manifest.json">
-</head>
-<body>
-  <script src="flutter_bootstrap.js" async></script>
-</body>
-</html>
+void startAP() {
+  WiFi.persistent(false);              // don't write NVS on every mode swap
+  WiFi.softAPdisconnect(true);         // ensure previous AP is down
+  delay(50);
+  WiFi.mode(WIFI_AP);
+  delay(50);
+
+  // Try to set country/channel conservatively to improve visibility
+  #if defined(ESP_WIFI_SUPPORTED)
+    wifi_country_t c = { "TR", 1, 13, 0, WIFI_COUNTRY_POLICY_AUTO };
+    esp_wifi_set_country(&c);
+  #endif
+
+  bool apOk = WiFi.softAP(ssid, nullptr /* open */, 1 /*ch*/, 0 /*hidden*/, 4 /*max conn*/);
+  Serial.printf("[AP] start %s, SSID=%s\n", apOk ? "OK" : "FAIL", ssid);
+  IPAddress apIP(192,168,4,1);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255,255,255,0));
+
+  dns.start(DNS_PORT, "*", apIP);
+  dns.setTTL(1);
+  dns.setErrorReplyCode(DNSReplyCode::NoError);
+
+  // ... existing route definitions ...
+  server.on("/reboot", [](){ sendOk(); rebootSoon(); });
+  server.on("/factory_reset", [](){ factoryReset(); sendOk(); rebootSoon(800); });
+
+  if (!serverStarted) {
+    server.begin();
+    serverStarted = true;
+  }
+
+  Serial.println("[AP] SSID is up. Connect to the ArtAirCleaner-XXXX network and open http://192.168.4.1/");
+}
+
+void startSTAHandlers() {
+  // ... existing handlers ...
+
+  server.on("/reboot", [](){ sendOk(); rebootSoon(); });
+  server.on("/factory_reset", [](){ factoryReset(); sendOk(); rebootSoon(800); });
+
+  if (!serverStarted) {
+    server.begin();
+    serverStarted = true;
+  }
+}
+
+void rebootSoon(uint32_t ms) {
+  uint32_t t0 = millis();
+  while (millis() - t0 < ms) {
+    server.handleClient();
+    delay(10);
+  }
+  ESP.restart();
+}
+
+void factoryReset() {
+  prefs.begin("wifi", false);
+  prefs.clear();
+  prefs.end();
+  WiFi.disconnect(true, true); // erase STA config
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  pinMode(FORCE_AP_PIN, INPUT_PULLUP);
+
+  uint8_t mac[6]; 
+  WiFi.macAddress(mac);
+  char id[16]; 
+  snprintf(id, sizeof(id), "AACL-%02X%02X%02X", mac[3], mac[4], mac[5]);
+  deviceId = id;
+  Serial.printf("[BOOT] DeviceId=%s MAC=%02X:%02X:%02X:%02X:%02X:%02X\n", deviceId.c_str(), mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+
+  // Force AP if button held or no Wi‑Fi environment
+  if (digitalRead(FORCE_AP_PIN) == LOW) {
+    Serial.println("[BOOT] FORCE_AP_PIN held low, starting AP");
+    startAP();
+    return;
+  }
+
+  // ... rest of setup ...
+}
+
+void loop() {
+  // ... small periodic blink/log that confirms mode ...
+
+  // ... existing code ...
+
+  if (provisioningMode) {
+    dns.processNextRequest();
+  }
+
+  // ... existing code ...
+
+  if (WiFi.status() == WL_CONNECTED) {
+    // server.close();  // removed per instructions
+    startSTAHandlers();
+  }
+
+  // ... rest of loop ...
+}
